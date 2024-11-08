@@ -99,7 +99,7 @@ public struct MessageComposerView<Factory: ViewFactory>: View, KeyboardReadable 
                     viewModel.sendMessage(
                         quotedMessage: quotedMessage,
                         editedMessage: editedMessage
-                    ) {
+                    ) { _ in
                         quotedMessage = nil
                         editedMessage = nil
                         onMessageSent()

@@ -181,7 +181,7 @@ struct AppleMessageComposerView<Factory: ViewFactory>: View, KeyboardReadable {
     private var sendButton: some View {
         BottomRightView {
             Button {
-                viewModel.sendMessage(quotedMessage: nil, editedMessage: nil) {
+                viewModel.sendMessage(quotedMessage: nil, editedMessage: nil) { _ in
                     onMessageSent()
                 }
             } label: {

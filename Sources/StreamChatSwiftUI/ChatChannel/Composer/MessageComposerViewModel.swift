@@ -11,7 +11,7 @@ import SwiftUI
 open class MessageComposerViewModel: ObservableObject {
     @Injected(\.chatClient) private var chatClient
     @Injected(\.utils) internal var utils
-    
+
     @Published public var pickerState: AttachmentPickerState = .photos {
         didSet {
             if pickerState == .camera {
@@ -25,14 +25,14 @@ open class MessageComposerViewModel: ObservableObject {
             }
         }
     }
-    
+
     @Published public private(set) var imageAssets: PHFetchResult<PHAsset>?
     @Published public private(set) var addedAssets = [AddedAsset]() {
         didSet {
             checkPickerSelectionState()
         }
     }
-    
+
     @Published public var text = "" {
         didSet {
             if text != "" {
@@ -59,7 +59,7 @@ open class MessageComposerViewModel: ObservableObject {
     }
 
     @Published public var selectedRangeLocation: Int = 0
-    
+
     @Published public var addedFileURLs = [URL]() {
         didSet {
             if totalAttachmentsCount > chatClient.config.maxAttachmentCountPerMessage
@@ -69,7 +69,7 @@ open class MessageComposerViewModel: ObservableObject {
             checkPickerSelectionState()
         }
     }
-    
+
     @Published public var addedVoiceRecordings = [AddedVoiceRecording]() {
         didSet {
             checkPickerSelectionState()
@@ -81,7 +81,7 @@ open class MessageComposerViewModel: ObservableObject {
             checkPickerSelectionState()
         }
     }
-    
+
     @Published public var pickerTypeState: PickerTypeState = .expanded(.none) {
         didSet {
             switch pickerTypeState {
@@ -102,7 +102,7 @@ open class MessageComposerViewModel: ObservableObject {
             }
         }
     }
-    
+
     @Published public private(set) var overlayShown = false {
         didSet {
             if overlayShown == true {
@@ -122,7 +122,7 @@ open class MessageComposerViewModel: ObservableObject {
             }
         }
     }
-    
+
     @Published public var filePickerShown = false
     @Published public var cameraPickerShown = false
     @Published public var errorShown = false
@@ -147,39 +147,39 @@ open class MessageComposerViewModel: ObservableObject {
             }
         }
     }
-    
+
     @Published public var audioRecordingInfo = AudioRecordingInfo.initial
-    
+
     public let channelController: ChatChannelController
     public var messageController: ChatMessageController?
     public var waveformTargetSamples: Int = 100
     public internal(set) var pendingAudioRecording: AddedVoiceRecording?
-    
+
     internal lazy var audioRecorder: AudioRecording = {
         let audioRecorder = utils.audioRecorder
         audioRecorder.subscribe(self)
         return audioRecorder
     }()
-    
+
     internal lazy var audioAnalysisFactory: AudioAnalysisEngine? = try? .init(
         assetPropertiesLoader: StreamAssetPropertyLoader()
     )
-    
+
     private var timer: Timer?
     private var cooldownPeriod = 0
     private var isSlowModeDisabled: Bool {
         channelController.channel?.ownCapabilities.contains("skip-slow-mode") == true
     }
-    
+
     private var cancellables = Set<AnyCancellable>()
     private lazy var commandsHandler = utils
         .commandsConfig
         .makeCommandsHandler(
             with: channelController
         )
-    
+
     public var mentionedUsers = Set<ChatUser>()
-    
+
     private var messageText: String {
         if let composerCommand = composerCommand,
            let displayInfo = composerCommand.displayInfo,
@@ -189,21 +189,21 @@ open class MessageComposerViewModel: ObservableObject {
             return adjustedText
         }
     }
-    
+
     var adjustedText: String {
         utils.composerConfig.adjustMessageOnSend(text)
     }
-    
+
     private var totalAttachmentsCount: Int {
         addedAssets.count +
             addedCustomAttachments.count +
             addedFileURLs.count
     }
-    
+
     private var canAddAdditionalAttachments: Bool {
         totalAttachmentsCount < chatClient.config.maxAttachmentCountPerMessage
     }
-    
+
     public init(
         channelController: ChatChannelController,
         messageController: ChatMessageController?
@@ -218,7 +218,7 @@ open class MessageComposerViewModel: ObservableObject {
             object: nil
         )
     }
-    
+
     public func sendMessage(
         quotedMessage: ChatMessage?,
         editedMessage: ChatMessage?,
@@ -226,33 +226,33 @@ open class MessageComposerViewModel: ObservableObject {
         skipPush: Bool = false,
         skipEnrichUrl: Bool = false,
         extraData: [String: RawJSON] = [:],
-        completion: @escaping () -> Void
+        completion: @escaping (String?) -> Void
     ) {
         defer {
             checkChannelCooldown()
         }
-        
+
         if let composerCommand = composerCommand, composerCommand.id != "instantCommands" {
             commandsHandler.executeOnMessageSent(
                 composerCommand: composerCommand
             ) { [weak self] _ in
                 self?.clearInputData()
-                completion()
+                completion(nil)
             }
-            
+
             if composerCommand.replacesMessageSent {
                 return
             }
         }
-        
+
         clearRemovedMentions()
         let mentionedUserIds = mentionedUsers.map(\.id)
-        
+
         if let editedMessage = editedMessage {
-            edit(message: editedMessage, completion: completion)
+            edit(message: editedMessage, completion: { completion(nil) })
             return
         }
-        
+
         do {
             var attachments = try addedAssets.map { try $0.toAttachmentPayload() }
             attachments += try addedFileURLs.map { url in
@@ -270,11 +270,11 @@ open class MessageComposerViewModel: ObservableObject {
                     localMetadata: localMetadata
                 )
             }
-            
+
             attachments += addedCustomAttachments.map { attachment in
                 attachment.content
             }
-            
+
             if let messageController = messageController {
                 messageController.createNewReply(
                     text: messageText,
@@ -288,8 +288,8 @@ open class MessageComposerViewModel: ObservableObject {
                     extraData: extraData
                 ) { [weak self] in
                     switch $0 {
-                    case .success:
-                        completion()
+                    case .success(let messageId):
+                        completion(messageId)
                     case .failure:
                         self?.errorShown = true
                     }
@@ -306,74 +306,74 @@ open class MessageComposerViewModel: ObservableObject {
                     extraData: extraData
                 ) { [weak self] in
                     switch $0 {
-                    case .success:
-                        completion()
+                    case .success(let messageId):
+                        completion(messageId)
                     case .failure:
                         self?.errorShown = true
                     }
                 }
             }
-            
+
             clearInputData()
         } catch {
             errorShown = true
         }
     }
-    
+
     public var sendButtonEnabled: Bool {
         if let composerCommand = composerCommand,
            let handler = commandsHandler.commandHandler(for: composerCommand) {
             return handler
                 .canBeExecuted(composerCommand: composerCommand)
         }
-        
+
         return !addedAssets.isEmpty ||
             !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
             !addedFileURLs.isEmpty ||
             !addedCustomAttachments.isEmpty ||
             !addedVoiceRecordings.isEmpty
     }
-    
+
     public var sendInChannelShown: Bool {
         messageController != nil
     }
-    
+
     public var isDirectChannel: Bool {
         channelController.channel?.isDirectMessageChannel ?? false
     }
-    
+
     public var showCommandsOverlay: Bool {
         let commandAvailable = composerCommand != nil
         let configuredCommandsAvailable = channelController.channel?.config.commands.count ?? 0 > 0
         return commandAvailable && configuredCommandsAvailable
     }
-    
+
     public func change(pickerState: AttachmentPickerState) {
         if pickerState != self.pickerState {
             self.pickerState = pickerState
         }
     }
-    
+
     public var inputComposerShouldScroll: Bool {
         if addedCustomAttachments.count > 3 {
             return true
         }
-        
+
         if addedFileURLs.count > 2 {
             return true
         }
-        
+
         if addedFileURLs.count == 2 && !addedAssets.isEmpty {
             return true
         }
-        
+
         if addedVoiceRecordings.count > 2 {
             return true
         }
-        
+
         return false
     }
-    
+
     public func imageTapped(_ addedAsset: AddedAsset) {
         var images = [AddedAsset]()
         var imageRemoved = false
@@ -384,14 +384,14 @@ open class MessageComposerViewModel: ObservableObject {
                 imageRemoved = true
             }
         }
-        
+
         if !imageRemoved && canAddAttachment(with: addedAsset.url) {
             images.append(addedAsset)
         }
-        
+
         addedAssets = images
     }
-    
+
     public func removeAttachment(with id: String) {
         if id.isURL, let url = URL(string: id) {
             var urls = [URL]()
@@ -420,25 +420,34 @@ open class MessageComposerViewModel: ObservableObject {
             }
             addedAssets = images
         }
+
+        // Remove custom attachments
+        var remainingCustomAttachments = [CustomAttachment]()
+        for attachment in addedCustomAttachments {
+            if attachment.id != id {
+                remainingCustomAttachments.append(attachment)
+            }
+        }
+        addedCustomAttachments = remainingCustomAttachments
     }
-    
+
     public func cameraImageAdded(_ image: AddedAsset) {
         if canAddAttachment(with: image.url) {
             addedAssets.append(image)
         }
         pickerState = .photos
     }
-    
+
     public func isImageSelected(with id: String) -> Bool {
         for image in addedAssets {
             if image.id == id {
                 return true
             }
         }
-        
+
         return false
     }
-    
+
     public func customAttachmentTapped(_ attachment: CustomAttachment) {
         var temp = [CustomAttachment]()
         var attachmentRemoved = false
@@ -449,24 +458,24 @@ open class MessageComposerViewModel: ObservableObject {
                 attachmentRemoved = true
             }
         }
-        
+
         if !attachmentRemoved && canAddAdditionalAttachments {
             temp.append(attachment)
         }
-        
+
         addedCustomAttachments = temp
     }
-    
+
     public func isCustomAttachmentSelected(_ attachment: CustomAttachment) -> Bool {
         for existing in addedCustomAttachments {
             if existing.id == attachment.id {
                 return true
             }
         }
-        
+
         return false
     }
-    
+
     public func askForPhotosPermission() {
         PHPhotoLibrary.requestAuthorization { [weak self] (status) in
             guard let self else { return }
@@ -484,7 +493,7 @@ open class MessageComposerViewModel: ObservableObject {
             }
         }
     }
-    
+
     public func handleCommand(
         for text: Binding<String>,
         selectedRangeLocation: Binding<Int>,
@@ -503,9 +512,9 @@ open class MessageComposerViewModel: ObservableObject {
             extraData: extraData
         )
     }
-    
+
     // MARK: - private
-    
+
     private func fetchAssets() {
         let fetchOptions = PHFetchOptions()
         let supportedTypes = utils.composerConfig.gallerySupportedTypes
@@ -524,7 +533,7 @@ open class MessageComposerViewModel: ObservableObject {
             self?.imageAssets = assets
         }
     }
-    
+
     private func checkForMentionedUsers(
         commandId: String?,
         extraData: [String: Any]
@@ -535,7 +544,7 @@ open class MessageComposerViewModel: ObservableObject {
         }
         mentionedUsers.insert(user)
     }
-    
+
     private func clearRemovedMentions() {
         for user in mentionedUsers {
             if !text.contains("@\(user.mentionText)") {
@@ -543,7 +552,7 @@ open class MessageComposerViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func edit(
         message: ChatMessage,
         completion: @escaping () -> Void
@@ -555,7 +564,7 @@ open class MessageComposerViewModel: ObservableObject {
             cid: channelId,
             messageId: message.id
         )
-        
+
         messageController.editMessage(
             text: adjustedText,
             attachments: utils.composerConfig.attachmentPayloadConverter(message)
@@ -566,10 +575,10 @@ open class MessageComposerViewModel: ObservableObject {
                 completion()
             }
         }
-        
+
         clearInputData()
     }
-    
+
     private func clearInputData() {
         text = ""
         addedAssets = []
@@ -580,13 +589,13 @@ open class MessageComposerViewModel: ObservableObject {
         mentionedUsers = Set<ChatUser>()
         clearText()
     }
-    
+
     private func checkPickerSelectionState() {
         if (!addedAssets.isEmpty || !addedFileURLs.isEmpty) {
             pickerTypeState = .collapsed
         }
     }
-    
+
     private func checkTypingSuggestions() {
         if composerCommand?.displayInfo?.isInstant == true {
             let typingSuggestion = TypingSuggestion(
@@ -604,10 +613,10 @@ open class MessageComposerViewModel: ObservableObject {
             in: text,
             caretLocation: selectedRangeLocation
         )
-        
+
         showTypingSuggestions()
     }
-    
+
     private func showTypingSuggestions() {
         if let composerCommand = composerCommand {
             commandsHandler.showSuggestions(for: composerCommand)
@@ -621,7 +630,7 @@ open class MessageComposerViewModel: ObservableObject {
                 .store(in: &cancellables)
         }
     }
-    
+
     private func listenToCooldownUpdates() {
         channelController.channelChangePublisher.sink { [weak self] _ in
             guard self?.isSlowModeDisabled == false else { return }
@@ -634,7 +643,7 @@ open class MessageComposerViewModel: ObservableObject {
         }
         .store(in: &cancellables)
     }
-    
+
     private func checkChannelCooldown() {
         let duration = channelController.channel?.cooldownDuration ?? 0
         if duration > 0 && timer == nil && !isSlowModeDisabled {
@@ -653,7 +662,7 @@ open class MessageComposerViewModel: ObservableObject {
             timer?.fire()
         }
     }
-    
+
     private func clearText() {
         // This is needed because of autocompleting text from the keyboard.
         // The update of the text is done in the next cycle, so it overrides
@@ -662,20 +671,20 @@ open class MessageComposerViewModel: ObservableObject {
             self?.text = ""
         }
     }
-    
+
     private func canAddAttachment(with url: URL) -> Bool {
         if !canAddAdditionalAttachments {
             return false
         }
-        
+
         return checkAttachmentSize(with: url)
     }
-    
+
     private func checkAttachmentSize(with url: URL?) -> Bool {
         guard let url = url else { return true }
-        
+
         _ = url.startAccessingSecurityScopedResource()
-        
+
         do {
             let fileSize = try AttachmentFile(url: url).size
             let canAdd = fileSize < chatClient.maxAttachmentSize(for: url)
@@ -685,7 +694,7 @@ open class MessageComposerViewModel: ObservableObject {
             return false
         }
     }
-    
+
     @objc
     private func applicationWillEnterForeground() {
         if (imageAssets?.count ?? 0) > 0 {
