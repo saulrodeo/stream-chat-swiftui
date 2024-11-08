@@ -61,14 +61,14 @@ public struct QuotedMessageView<Factory: ViewFactory>: View {
     @Injected(\.fonts) private var fonts
     @Injected(\.colors) private var colors
     @Injected(\.utils) private var utils
-    
+
     private let attachmentWidth: CGFloat = 36
 
     public var factory: Factory
     public var quotedMessage: ChatMessage
     public var fillAvailableSpace: Bool
     public var forceLeftToRight: Bool
-    
+
     private var messageTypeResolver: MessageTypeResolving {
         utils.messageTypeResolver
     }
@@ -125,12 +125,10 @@ public struct QuotedMessageView<Factory: ViewFactory>: View {
                         .priority(.high)
                     }
                 }
-                .frame(width: hasVoiceAttachments ? nil : attachmentWidth, height: attachmentWidth)
+                .frame(width: (hasVoiceAttachments || hasCustomAttachments) ? nil : attachmentWidth, height: hasCustomAttachments ? nil : attachmentWidth)
                 .aspectRatio(1, contentMode: .fill)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .allowsHitTesting(false)
-            } else if let poll = quotedMessage.poll, !quotedMessage.isDeleted {
-                Text("📊 \(poll.name)")
             }
 
             Text(textForMessage)
@@ -144,9 +142,10 @@ public struct QuotedMessageView<Factory: ViewFactory>: View {
             }
         }
         .id(quotedMessage.messageId)
-        .padding(
-            hasVoiceAttachments ? [.leading, .top, .bottom] : .all, utils.messageListConfig.messagePaddings.quotedViewPadding
-        )
+        .if(!hasCustomAttachments, transform: { content in
+            content
+                .padding(hasVoiceAttachments ?  [.leading, .top, .bottom] : .all, 8)
+        })
         .modifier(
             factory.makeMessageViewModifier(
                 for: MessageModifierInfo(
@@ -194,19 +193,23 @@ public struct QuotedMessageView<Factory: ViewFactory>: View {
 
         return ""
     }
-    
+
     private var hasVoiceAttachments: Bool {
         !quotedMessage.voiceRecordingAttachments.isEmpty
+    }
+
+    private var hasCustomAttachments: Bool {
+        messageTypeResolver.hasCustomAttachment(message: quotedMessage)
     }
 }
 
 struct VoiceRecordingPreview: View {
-    
+
     @Injected(\.images) var images
     @Injected(\.utils) var utils
-    
+
     let voiceAttachment: VoiceRecordingAttachmentPayload
-    
+
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
@@ -218,12 +221,12 @@ struct VoiceRecordingPreview: View {
                 )
                 .bold()
                 .lineLimit(1)
-                
+
                 RecordingDurationView(duration: voiceAttachment.duration ?? 0)
             }
-            
+
             Spacer()
-            
+
             Image(uiImage: images.fileAac)
                 .resizable()
                 .aspectRatio(contentMode: .fit)

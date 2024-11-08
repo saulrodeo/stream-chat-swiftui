@@ -20,9 +20,6 @@ struct ReactionsContainer: View {
                     useLargeIcons: useLargeIcons,
                     reactions: reactions
                 ) { _ in
-                    log.debug("tapped on reaction")
-                }
-                .onTapGesture {
                     onTapGesture()
                 }
                 .onLongPressGesture {
@@ -71,29 +68,17 @@ struct ReactionsView: View {
     var onReactionTap: (MessageReactionType) -> Void
 
     var body: some View {
-        HStack {
+        HStack(spacing: -24) {
             ForEach(reactions) { reaction in
-                if let image = ReactionsIconProvider.icon(for: reaction, useLargeIcons: useLargeIcons) {
-                    ReactionIcon(
-                        icon: image,
-                        color: ReactionsIconProvider.color(
-                            for: reaction,
-                            userReactionIDs: userReactionIDs
-                        )
-                    )
-                    .frame(width: useLargeIcons ? 25 : 20, height: useLargeIcons ? 27 : 20)
-                    .gesture(
-                        useLargeIcons ?
-                            TapGesture().onEnded {
-                                onReactionTap(reaction)
-                            } : nil
-                    )
-                    .accessibilityIdentifier("reaction-\(reaction.id)")
-                }
+                ReactionBubble(
+                    reaction: reaction,
+                    message: message,
+                    useLargeIcons: useLargeIcons,
+                    isUserReaction: userReactionIDs.contains(reaction),
+                    onTap: onReactionTap
+                )
             }
         }
-        .padding(.all, 6)
-        .reactionsBubble(for: message)
     }
 
     private var userReactionIDs: Set<MessageReactionType> {
@@ -101,21 +86,42 @@ struct ReactionsView: View {
     }
 }
 
-public struct ReactionIcon: View {
-    
-    var icon: UIImage
-    var color: Color?
-    
-    public init(icon: UIImage, color: Color? = nil) {
-        self.icon = icon
-        self.color = color
+struct ReactionBubble: View {
+    let reaction: MessageReactionType
+    let message: ChatMessage
+    let useLargeIcons: Bool
+    let isUserReaction: Bool
+    let onTap: (MessageReactionType) -> Void
+
+    var body: some View {
+        Button(action: { onTap(reaction) }) {
+            HStack(spacing: 4) {
+                ReactionIcon(reaction: reaction)
+            }
+            .padding(6)
+            .background(isUserReaction ? Color.blue : Color.gray)
+            .clipShape(Circle())
+        }
     }
-    
+}
+
+public struct ReactionIcon: View {
+    let emojiReaction: String
+
+    public init(reaction: MessageReactionType) {
+        switch reaction.rawValue {
+        case "love":    emojiReaction = "❤️"
+        case "haha":    emojiReaction = "😂"
+        case "like":    emojiReaction = "👍"
+        case "sad":     emojiReaction = "😢"
+        case "wow":     emojiReaction = "😮"
+        default:        emojiReaction = ""
+        }
+    }
+
     public var body: some View {
-        Image(uiImage: icon)
-            .resizable()
-            .scaledToFit()
-            .foregroundColor(color)
+        Text(emojiReaction)
+            .font(.system(size: 24))
     }
 }
 

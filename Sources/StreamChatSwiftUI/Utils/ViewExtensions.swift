@@ -46,7 +46,6 @@ extension View {
     /// Method for making a haptic feedback.
     /// - Parameter style: feedback style
     func triggerHapticFeedback(style: UIImpactFeedbackGenerator.FeedbackStyle) {
-        let generator = UIImpactFeedbackGenerator(style: style)
-        generator.impactOccurred()
+        UINotificationFeedbackGenerator.shared.notificationOccurred(.success)
     }
 }

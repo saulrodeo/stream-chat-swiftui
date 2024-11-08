@@ -65,69 +65,7 @@ struct BottomReactionsView: View {
     }
     
     private func content(for reactions: [MessageReactionType], isEndRow: Bool = true) -> some View {
-        Group {
-            ForEach(reactions) { reaction in
-                if let image = ReactionsIconProvider.icon(for: reaction, useLargeIcons: false) {
-                    HStack(spacing: 4) {
-                        ReactionIcon(
-                            icon: image,
-                            color: ReactionsIconProvider.color(
-                                for: reaction,
-                                userReactionIDs: userReactionIDs
-                            )
-                        )
-                        .frame(width: reactionSize, height: reactionSize)
-                        Text("\(count(for: reaction))")
-                    }
-                    .animation(nil)
-                    .padding(.all, 8)
-                    .background(Color(colors.background1))
-                    .modifier(
-                        BubbleModifier(
-                            corners: corners(for: reaction, in: reactions, isEndRow: isEndRow),
-                            backgroundColors: [Color(colors.background1)],
-                            cornerRadius: cornerRadius
-                        )
-                    )
-                    .onTapGesture {
-                        viewModel.reactionTapped(reaction)
-                    }
-                    .onLongPressGesture {
-                        onLongPress()
-                    }
-                }
-            }
-            
-            if isEndRow && reactions.count < reactionsPerRow {
-                Button(
-                    action: onTap,
-                    label: {
-                        Image(systemName: "face.smiling.inverse")
-                            .overlay(
-                                TopRightView {
-                                    Image(systemName: "plus")
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 6)
-                                        .padding(.all, 2)
-                                        .background(Color(colors.background1))
-                                        .clipShape(Circle())
-                                        .offset(x: 4, y: -3)
-                                }
-                            )
-                            .padding(.all, 8)
-                            .padding(.horizontal, 2)
-                            .modifier(
-                                BubbleModifier(
-                                    corners: cornersForAddReactionButton,
-                                    backgroundColors: [Color(colors.background1)],
-                                    cornerRadius: cornerRadius
-                                )
-                            )
-                    }
-                )
-            }
-        }
+        EmptyView()
     }
     
     private var message: ChatMessage {

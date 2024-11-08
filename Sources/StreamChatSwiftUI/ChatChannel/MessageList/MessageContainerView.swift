@@ -112,43 +112,41 @@ public struct MessageContainerView<Factory: ViewFactory>: View {
                         GeometryReader { proxy in
                             Rectangle().fill(Color.clear)
                                 .onChange(of: computeFrame, perform: { _ in
-                                    frame = proxy.frame(in: .global)
+                                    DispatchQueue.main.async {
+                                        frame = proxy.frame(in: .global)
+                                    }
                                 })
                         }
                     )
-                    .onTapGesture(count: 2) {
-                        if messageListConfig.doubleTapOverlayEnabled {
-                            handleGestureForMessage(showsMessageActions: true)
-                        }
-                    }
-                    .onLongPressGesture(perform: {
+                    .onLongPressGesture(minimumDuration: 0.2, perform: {
                         if !message.isDeleted {
                             handleGestureForMessage(showsMessageActions: true)
                         }
                     })
                     .offset(x: min(self.offsetX, maximumHorizontalSwipeDisplacement))
-                    .simultaneousGesture(
-                        DragGesture(
-                            minimumDistance: minimumSwipeDistance,
-                            coordinateSpace: .local
-                        )
-                        .updating($offset) { (value, gestureState, _) in
-                            if message.isDeleted || !channel.config.repliesEnabled {
-                                return
-                            }
-                            // Using updating since onEnded is not called if the gesture is canceled.
-                            let diff = CGSize(
-                                width: value.location.x - value.startLocation.x,
-                                height: value.location.y - value.startLocation.y
-                            )
-
-                            if diff == .zero {
-                                gestureState = .zero
-                            } else {
-                                gestureState = value.translation
-                            }
-                        }
-                    )
+                    // NOTE: IF YOU UNCOMMENT THIS THEN THE LONG PRESS WILL TAKE A LOT LONGER AND ONLY TRIGGER ON END
+//                    .simultaneousGesture(
+//                        DragGesture(
+//                            minimumDistance: minimumSwipeDistance,
+//                            coordinateSpace: .local
+//                        )
+//                        .updating($offset) { (value, gestureState, _) in
+//                            if message.isDeleted || !channel.config.repliesEnabled {
+//                                return
+//                            }
+//                            // Using updating since onEnded is not called if the gesture is canceled.
+//                            let diff = CGSize(
+//                                width: value.location.x - value.startLocation.x,
+//                                height: value.location.y - value.startLocation.y
+//                            )
+//
+//                            if diff == .zero {
+//                                gestureState = .zero
+//                            } else {
+//                                gestureState = value.translation
+//                            }
+//                        }
+//                    )
                     .onChange(of: offset, perform: { _ in
                         if !channel.config.quotesEnabled {
                             return
@@ -164,30 +162,16 @@ public struct MessageContainerView<Factory: ViewFactory>: View {
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("MessageView")
 
-                    if !isInThread {
-                        if message.replyCount > 0 {
-                            factory.makeMessageRepliesView(
-                                channel: channel,
-                                message: message,
-                                replyCount: message.replyCount
-                            )
-                            .accessibilityElement(children: .contain)
-                            .accessibility(identifier: "MessageRepliesView")
-                        } else if message.showReplyInChannel,
-                                  let parentId = message.parentMessageId,
-                                  let controller = utils.channelControllerFactory.currentChannelController,
-                                  let parentMessage = controller.dataStore.message(id: parentId) {
-                            factory.makeMessageRepliesShownInChannelView(
-                                channel: channel,
-                                message: message,
-                                parentMessage: parentMessage,
-                                replyCount: parentMessage.replyCount
-                            )
-                            .accessibilityElement(children: .contain)
-                            .accessibility(identifier: "MessageRepliesView")
-                        }
+                    if message.replyCount > 0 && !isInThread {
+                        factory.makeMessageRepliesView(
+                            channel: channel,
+                            message: message,
+                            replyCount: message.replyCount
+                        )
+                        .accessibilityElement(children: .contain)
+                        .accessibility(identifier: "MessageRepliesView")
                     }
-                    
+
                     if bottomReactionsShown {
                         factory.makeBottomReactionsView(message: message, showsAllInfo: showsAllInfo) {
                             handleGestureForMessage(
@@ -291,14 +275,14 @@ public struct MessageContainerView<Factory: ViewFactory>: View {
         }
         return reactionsShown
     }
-    
+
     private var bottomReactionsShown: Bool {
         if messageListConfig.messageDisplayOptions.reactionsPlacement == .top {
             return false
         }
         return reactionsShown
     }
-    
+
     private var reactionsShown: Bool {
         !message.reactionScores.isEmpty
             && !message.isDeleted
@@ -341,24 +325,18 @@ public struct MessageContainerView<Factory: ViewFactory>: View {
         }
     }
 
-    private func handleGestureForMessage(
-        showsMessageActions: Bool,
-        showsBottomContainer: Bool = true
-    ) {
-        computeFrame.toggle()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            triggerHapticFeedback(style: .medium)
-            onLongPress(
-                MessageDisplayInfo(
-                    message: message,
-                    frame: frame,
-                    contentWidth: contentWidth,
-                    isFirst: showsAllInfo,
-                    showsMessageActions: showsMessageActions,
-                    showsBottomContainer: showsBottomContainer
-                )
+    private func handleGestureForMessage(showsMessageActions: Bool, showsBottomContainer: Bool = true) {
+        triggerHapticFeedback(style: .medium)
+        onLongPress(
+            MessageDisplayInfo(
+                message: message,
+                frame: frame,
+                contentWidth: contentWidth,
+                isFirst: showsAllInfo,
+                showsMessageActions: showsMessageActions,
+                showsBottomContainer: showsBottomContainer
             )
-        }
+        )
     }
 }
 
@@ -406,4 +384,13 @@ public struct MessageDisplayInfo {
         self.keyboardWasShown = keyboardWasShown
         self.showsBottomContainer = showsBottomContainer
     }
+}
+
+extension Notification.Name {
+    static let moveSheet = Notification.Name("MoveSheet")
+}
+
+
+extension UINotificationFeedbackGenerator {
+    public static let shared = UINotificationFeedbackGenerator()
 }
