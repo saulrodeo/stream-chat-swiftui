@@ -38,8 +38,7 @@ struct ReactionsContainer: View {
     }
 
     private var reactions: [MessageReactionType] {
-        // Get all reactions including duplicates
-        message.reactionScores.flatMap { (type, count) in
+        message.reactionScores.flatMap { type, count in
             Array(repeating: type, count: Int(count))
         }
         .sorted(by: utils.sortReactions)
@@ -47,13 +46,12 @@ struct ReactionsContainer: View {
 
     private var reactionsSize: CGFloat {
         let entrySize = 32
-        // Use total count of all reactions
-        return CGFloat(reactions.count * entrySize)
+        return CGFloat(message.reactionScores.count * entrySize)
     }
 
     private var offsetX: CGFloat {
-        var offset = reactionsSize / 3
-        if reactions.count == 1 {
+        var offset = reactionsSize / 2
+        if message.reactionScores.count == 1 {
             offset = 16
         }
         return message.isRightAligned ? -offset : offset
@@ -70,17 +68,24 @@ struct ReactionsView: View {
     var onReactionTap: (MessageReactionType) -> Void
 
     var body: some View {
-        HStack(spacing: -24) {
+        HStack(spacing: -10) {
             ForEach(Array(reactions.enumerated()), id: \.offset) { index, reaction in
                 ReactionBubble(
                     reaction: reaction,
                     message: message,
                     useLargeIcons: useLargeIcons,
-                    isUserReaction: userReactionIDs.contains(reaction),
+                    isUserReaction: isUserReactionAtIndex(index),
                     onTap: onReactionTap
                 )
             }
         }
+    }
+
+    private func isUserReactionAtIndex(_ index: Int) -> Bool {
+        let userReactionIndices = message.currentUserReactions.compactMap { reaction in
+            reactions.firstIndex(of: reaction.type)
+        }
+        return userReactionIndices.contains(index)
     }
 
     private var userReactionIDs: Set<MessageReactionType> {
@@ -124,6 +129,8 @@ public struct ReactionIcon: View {
     public var body: some View {
         Text(emojiReaction)
             .font(.system(size: 24))
+            .frame(minWidth: 24, minHeight: 24) // Ensure minimum size for the bubble
+
     }
 }
 
