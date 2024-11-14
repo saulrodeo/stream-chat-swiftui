@@ -38,20 +38,22 @@ struct ReactionsContainer: View {
     }
 
     private var reactions: [MessageReactionType] {
-        message.reactionScores.keys.filter { reactionType in
-            (message.reactionScores[reactionType] ?? 0) > 0
+        // Get all reactions including duplicates
+        message.reactionScores.flatMap { (type, count) in
+            Array(repeating: type, count: Int(count))
         }
         .sorted(by: utils.sortReactions)
     }
 
     private var reactionsSize: CGFloat {
         let entrySize = 32
-        return CGFloat(message.reactionScores.count * entrySize)
+        // Use total count of all reactions
+        return CGFloat(reactions.count * entrySize)
     }
 
     private var offsetX: CGFloat {
         var offset = reactionsSize / 3
-        if message.reactionScores.count == 1 {
+        if reactions.count == 1 {
             offset = 16
         }
         return message.isRightAligned ? -offset : offset
@@ -69,7 +71,7 @@ struct ReactionsView: View {
 
     var body: some View {
         HStack(spacing: -24) {
-            ForEach(reactions) { reaction in
+            ForEach(Array(reactions.enumerated()), id: \.offset) { index, reaction in
                 ReactionBubble(
                     reaction: reaction,
                     message: message,
