@@ -256,9 +256,7 @@ public struct MessageListView<Factory: ViewFactory>: View, KeyboardReadable {
                         if !shouldJump {
                             return
                         }
-                        withAnimation {
-                            scrollView.scrollTo(scrolledId, anchor: messageListConfig.scrollingAnchor)
-                        }
+                        scrollView.scrollTo(scrolledId, anchor: .center)
                     }
                 }
                 .accessibilityIdentifier("MessageListScrollView")
