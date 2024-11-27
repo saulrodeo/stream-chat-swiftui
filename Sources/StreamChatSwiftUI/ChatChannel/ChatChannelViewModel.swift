@@ -268,61 +268,56 @@ open class ChatChannelViewModel: ObservableObject, MessagesDataSource {
             }
             return false
         }
-        if messageId == messages.first?.messageId {
+        let findBaseId: String? = {
+            if StreamRuntimeCheck._isDatabaseObserverItemReusingEnabled {
+                return messageId
+            } else {
+                return messageId.components(separatedBy: "$").first
+            }
+        }()
+        guard let baseId = findBaseId else {
             scrolledId = nil
             return true
-        } else {
-            let findBaseId: String? = {
-                if StreamRuntimeCheck._isDatabaseObserverItemReusingEnabled {
-                    return messageId
-                } else {
-                    return messageId.components(separatedBy: "$").first
-                }
-            }()
-            guard let baseId = findBaseId else {
-                scrolledId = nil
-                return true
+        }
+        let alreadyLoaded = messages.map(\.id).contains(baseId)
+        if alreadyLoaded {
+            if scrolledId == nil {
+                scrolledId = messageId
             }
-            let alreadyLoaded = messages.map(\.id).contains(baseId)
-            if alreadyLoaded {
-                if scrolledId == nil {
-                    scrolledId = messageId
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                    self?.scrolledId = nil
-                }
-                return true
-            } else {
-                let message = channelController.dataStore.message(id: baseId)
-                if let parentMessageId = message?.parentMessageId, !isMessageThread {
-                    let parentMessage = channelController.dataStore.message(id: parentMessageId)
-                    threadMessage = parentMessage
-                    threadMessageShown = true
-                    messageCachingUtils.jumpToReplyId = message?.messageId
-                    return false
-                }
-                
-                scrolledId = nil
-                if loadingMessagesAround {
-                    return false
-                }
-                loadingMessagesAround = true
-                channelDataSource.loadPageAroundMessageId(baseId) { [weak self] error in
-                    if error != nil {
-                        log.error("Error loading messages around message \(messageId)")
-                        return
-                    }
-                    var toJumpId = messageId
-                    if toJumpId == baseId, let message = self?.channelController.dataStore.message(id: toJumpId) {
-                        toJumpId = message.messageId
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        self?.scrolledId = toJumpId
-                        self?.loadingMessagesAround = false
-                    }
-                }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.scrolledId = nil
+            }
+            return true
+        } else {
+            let message = channelController.dataStore.message(id: baseId)
+            if let parentMessageId = message?.parentMessageId, !isMessageThread {
+                let parentMessage = channelController.dataStore.message(id: parentMessageId)
+                threadMessage = parentMessage
+                threadMessageShown = true
+                messageCachingUtils.jumpToReplyId = message?.messageId
                 return false
             }
+
+            scrolledId = nil
+            if loadingMessagesAround {
+                return false
+            }
+            loadingMessagesAround = true
+            channelDataSource.loadPageAroundMessageId(baseId) { [weak self] error in
+                if error != nil {
+                    log.error("Error loading messages around message \(messageId)")
+                    return
+                }
+                var toJumpId = messageId
+                if toJumpId == baseId, let message = self?.channelController.dataStore.message(id: toJumpId) {
+                    toJumpId = message.messageId
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self?.scrolledId = toJumpId
+                    self?.loadingMessagesAround = false
+                }
+            }
+            return false
         }
     }
     
