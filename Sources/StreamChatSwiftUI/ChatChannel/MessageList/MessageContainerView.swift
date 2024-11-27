@@ -258,7 +258,7 @@ public struct MessageContainerView<Factory: ViewFactory>: View {
 
     private var contentWidth: CGFloat {
         let padding: CGFloat = messageListConfig.messagePaddings.horizontal
-        let minimumWidth: CGFloat = 240
+        let minimumWidth: CGFloat = 40
         let available = max(minimumWidth, (width ?? 0) - spacerWidth) - 2 * padding
         let avatarSize: CGFloat = CGSize.messageAvatarSize.width + padding
         let totalWidth = message.isRightAligned ? available : available - avatarSize
