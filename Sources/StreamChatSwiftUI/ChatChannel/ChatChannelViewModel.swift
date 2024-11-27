@@ -150,7 +150,7 @@ open class ChatChannelViewModel: ObservableObject, MessagesDataSource {
         messages = channelDataSource.messages
         channel = channelController.channel
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now()) { [weak self] in
             if let scrollToMessage, let parentMessageId = scrollToMessage.parentMessageId, messageController == nil {
                 let message = channelController.dataStore.message(id: parentMessageId)
                 self?.threadMessage = message
