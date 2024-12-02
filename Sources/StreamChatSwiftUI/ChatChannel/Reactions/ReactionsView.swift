@@ -115,7 +115,7 @@ struct ReactionBubble: View {
 public struct ReactionIcon: View {
     let emojiReaction: String
 
-    public init(reaction: MessageReactionType, message: ChatMessage) {
+    public init(reaction: MessageReactionType) {
         switch reaction.rawValue {
         case "yes":     emojiReaction = "✅"
         case "no":      emojiReaction = "❌"
