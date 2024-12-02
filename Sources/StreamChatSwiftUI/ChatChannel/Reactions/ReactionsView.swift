@@ -117,9 +117,9 @@ public struct ReactionIcon: View {
 
     public init(reaction: MessageReactionType) {
         switch reaction.rawValue {
-        case "yes":     emojiReaction = "✅"
-        case "no":      emojiReaction = "❌"
-        case "maybe":   emojiReaction = "🤔"
+        case "yes":     emojiReaction = "👍"
+        case "no":      emojiReaction = "😢"
+        case "maybe":   emojiReaction = "🤷"
         case "fave":    emojiReaction = "⭐️"
         case "love":    emojiReaction = "❤️"
         case "haha":    emojiReaction = "😂"
